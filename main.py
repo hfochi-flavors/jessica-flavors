@@ -1,34 +1,60 @@
 import streamlit as st
 import google.generativeai as genai
+from google.api_core import exceptions
 
-# Tenta ler a nova chave
+# 1. Configuração Robusta
 try:
     CHAVE = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=CHAVE)
-    # Usamos o modelo mais básico e aceito universalmente
+    
+    # Forçamos o uso do modelo estável 1.5 Flash
+    # Este modelo substitui o gemini-pro e o 3-flash-preview nas APIs estáveis
     model = genai.GenerativeModel('gemini-1.5-flash')
-    status_msg = "✅ Jéssica Online"
+    
+    status_msg = "✅ Jéssica Cloud: Conectada"
     online = True
 except Exception as e:
-    status_msg = f"❌ Erro: {e}"
+    status_msg = f"❌ Erro na Inicialização: {e}"
     online = False
 
-st.title("🤖 Jéssica Cloud: Flavors Flight")
-st.write(f"Status: {status_msg}")
+st.set_page_config(page_title="Jéssica - Flavors Flight", page_icon="🤖")
+st.title("🤖 Jéssica: Inteligência de Pedidos")
+st.caption("Sistema Flavors Flight Catering")
+
+st.info(status_msg)
+
+# Memória Temporária (enquanto a aba estiver aberta)
+if "memoria" not in st.session_state:
+    st.session_state.memoria = {}
 
 nome = st.text_input("👤 Companhia Aérea:")
-pedido = st.text_area("📋 Detalhes do Pedido:")
+pedido = st.text_area("📋 Detalhes do Pedido:", height=150)
 
-if st.button("🚀 Analisar"):
+if st.button("🚀 Analisar com a Jéssica"):
     if online and nome and pedido:
-        with st.spinner('Processando...'):
+        with st.spinner('Acessando servidores do Google...'):
+            hist = st.session_state.memoria.get(nome, "Primeiro pedido.")
+            prompt = f"Você é a Jéssica da Flavors Flight. Analise o pedido de {nome}. Histórico: {hist}. Pedido: {pedido}."
+            
             try:
-                # Se o 1.5 der erro, o sistema tentará o 1.0 automaticamente
-                response = model.generate_content(pedido)
+                # Chamada direta e simplificada
+                response = model.generate_content(prompt)
+                
+                st.markdown("---")
+                st.subheader(f"💡 Resultado para {nome}")
                 st.markdown(response.text)
-            except:
-                model_alt = genai.GenerativeModel('gemini-pro')
-                response = model_alt.generate_content(pedido)
+                
+                # Guarda na memória
+                st.session_state.memoria[nome] = response.text
+                st.success("Análise memorizada nesta sessão.")
+                
+            except exceptions.NotFound:
+                st.error("Erro 404: O modelo não foi encontrado nesta região. Tentando alternativa...")
+                # Tenta um modelo de backup caso o 1.5 Flash falhe
+                model_backup = genai.GenerativeModel('gemini-1.5-flash-8b')
+                response = model_backup.generate_content(prompt)
                 st.markdown(response.text)
+            except Exception as e:
+                st.error(f"Erro técnico: {e}")
     else:
-        st.warning("Verifique os campos.")
+        st.warning("Preencha os dados e verifique a conexão.")
