@@ -1,12 +1,14 @@
 import streamlit as st
 import google.generativeai as genai
 
-# Configuração da API
+# Tenta carregar a chave do cofre (Secrets)
 try:
     CHAVE = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=CHAVE)
-    # Usamos o modelo 'gemini-pro', o mais estável de todos
-    model = genai.GenerativeModel('gemini-pro')
+    # Usamos o modelo 'gemini-1.5-flash', que é o mais rápido e estável
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Teste de conexão
+    model.generate_content("oi")
     status_msg = "✅ Jéssica Cloud: Online"
     online = True
 except Exception as e:
@@ -15,11 +17,9 @@ except Exception as e:
 
 st.set_page_config(page_title="Jéssica - Flavors Flight", page_icon="🤖")
 st.title("🤖 Jéssica: Inteligência de Pedidos")
-st.caption("Flavors Flight Catering")
+st.write(f"Status: **{status_msg}**")
 
-st.write(f"Status do Sistema: **{status_msg}**")
-
-# Memória da Sessão (Persiste enquanto a aba estiver aberta)
+# Memória da Sessão
 if "memoria" not in st.session_state:
     st.session_state.memoria = {}
 
@@ -28,28 +28,18 @@ pedido = st.text_area("📋 Detalhes do Pedido:", height=150)
 
 if st.button("🚀 Analisar Pedido"):
     if online and nome and pedido:
-        with st.spinner('Analisando histórico e padrões...'):
-            hist = st.session_state.memoria.get(nome, "Primeiro pedido registrado.")
-            
-            prompt = f"""
-            Você é a Jéssica da Flavors Flight Catering. 
-            Analise o pedido atual da {nome} levando em conta o histórico.
-            Histórico: {hist}
-            Pedido Atual: {pedido}
-            
-            Retorne: Preferências identificadas, Alertas e 3 Perguntas para a produção.
-            """
+        with st.spinner('Analisando...'):
+            hist = st.session_state.memoria.get(nome, "Primeiro contato.")
+            prompt = f"Você é a Jéssica da Flavors Flight. Analise o pedido de {nome}. Histórico: {hist}. Pedido: {pedido}."
             
             try:
                 response = model.generate_content(prompt)
                 st.markdown("---")
-                st.subheader(f"💡 Insights para {nome}")
                 st.markdown(response.text)
-                
-                # Salva o resultado na memória para a próxima consulta
+                # Salva na memória
                 st.session_state.memoria[nome] = response.text
-                st.success("Análise concluída e memorizada!")
+                st.success("Análise concluída!")
             except Exception as e:
                 st.error(f"Erro na análise: {e}")
     else:
-        st.warning("Preencha os campos ou verifique a conexão.")
+        st.warning("Verifique os campos ou a conexão.")
