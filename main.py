@@ -1,51 +1,55 @@
 import streamlit as st
-from google import genai
+import google.generativeai as genai
 
-# Configuração de Segurança
+# Configuração da API
 try:
     CHAVE = st.secrets["GEMINI_API_KEY"]
-    client = genai.Client(api_key=CHAVE, http_options={'api_version': 'v1'})
-    # Testamos o modelo mais estável disponível
-    client.models.generate_content(model="gemini-1.5-flash-8b", contents="oi")
-    status_msg = "✅ Jéssica Online e Pronta"
+    genai.configure(api_key=CHAVE)
+    # Usamos o modelo 'gemini-pro', o mais estável de todos
+    model = genai.GenerativeModel('gemini-pro')
+    status_msg = "✅ Jéssica Cloud: Online"
     online = True
 except Exception as e:
-    status_msg = f"❌ Aguardando Conexão: {e}"
+    status_msg = f"❌ Erro de Conexão: {e}"
     online = False
 
 st.set_page_config(page_title="Jéssica - Flavors Flight", page_icon="🤖")
 st.title("🤖 Jéssica: Inteligência de Pedidos")
 st.caption("Flavors Flight Catering")
 
-st.write(f"Status: **{status_msg}**")
+st.write(f"Status do Sistema: **{status_msg}**")
 
-# Memória da Sessão
+# Memória da Sessão (Persiste enquanto a aba estiver aberta)
 if "memoria" not in st.session_state:
     st.session_state.memoria = {}
-
-with st.sidebar:
-    st.subheader("📚 Histórico")
-    if st.button("Limpar Memória"):
-        st.session_state.memoria = {}
-        st.rerun()
 
 nome = st.text_input("👤 Companhia Aérea:")
 pedido = st.text_area("📋 Detalhes do Pedido:", height=150)
 
 if st.button("🚀 Analisar Pedido"):
     if online and nome and pedido:
-        with st.spinner('Analisando preferências...'):
-            hist = st.session_state.memoria.get(nome, "Primeiro pedido.")
-            prompt = f"Você é a Jéssica da Flavors Flight. Analise o pedido de {nome}. Histórico: {hist}. Pedido: {pedido}. Liste preferências, alertas e 3 perguntas."
+        with st.spinner('Analisando histórico e padrões...'):
+            hist = st.session_state.memoria.get(nome, "Primeiro pedido registrado.")
+            
+            prompt = f"""
+            Você é a Jéssica da Flavors Flight Catering. 
+            Analise o pedido atual da {nome} levando em conta o histórico.
+            Histórico: {hist}
+            Pedido Atual: {pedido}
+            
+            Retorne: Preferências identificadas, Alertas e 3 Perguntas para a produção.
+            """
             
             try:
-                # Usando o modelo 8b, que é o 'coringa' para evitar erros 404
-                response = client.models.generate_content(model="gemini-1.5-flash-8b", contents=prompt)
+                response = model.generate_content(prompt)
                 st.markdown("---")
                 st.subheader(f"💡 Insights para {nome}")
                 st.markdown(response.text)
+                
+                # Salva o resultado na memória para a próxima consulta
                 st.session_state.memoria[nome] = response.text
+                st.success("Análise concluída e memorizada!")
             except Exception as e:
-                st.error(f"Erro na nuvem: {e}")
+                st.error(f"Erro na análise: {e}")
     else:
-        st.warning("Preencha os campos e verifique o status Online.")
+        st.warning("Preencha os campos ou verifique a conexão.")
